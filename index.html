@@ -2,25 +2,46 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>ZANGE - SECRET P2P CHAT</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>懺悔.com - ZANGE P2P CHAT</title>
     <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
     
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@400;700&display=swap');
 
-        body {
+        /* ----------------------------------------------------
+           AI SERIOUS MODE: LAYOUT LOCKDOWN
+           画面を物理的に固定するための設定
+        ---------------------------------------------------- */
+        html, body {
             margin: 0;
             padding: 0;
+            width: 100%;
+            height: 100%; /* dvhなどはJSで制御するため100%で固定 */
             background-color: #050505;
             color: #ffffff;
             font-family: 'Shippori Mincho', 'Yu Mincho', serif;
-            height: 100vh;
-            overflow: hidden;
+            overflow: hidden; /* スクロールバー完全非表示 */
+            position: fixed; /* 画面をブラウザ枠に鋲打ちする */
+            top: 0;
+            left: 0;
+            touch-action: none; /* ピンチズームやパン操作を無効化 */
+            -webkit-overflow-scrolling: touch;
+        }
+
+        /* アプリ全体のラッパー（JSで高さを1px単位で制御） */
+        #app-wrapper {
+            width: 100%;
+            height: 100%;
             display: flex;
             justify-content: center;
             align-items: center;
+            position: relative;
         }
+
+        /* ----------------------------------------------------
+           UI COMPONENTS
+        ---------------------------------------------------- */
 
         .screen {
             display: none;
@@ -30,6 +51,7 @@
             align-items: center;
             justify-content: center;
             animation: fadeIn 1s ease;
+            box-sizing: border-box;
         }
 
         #screen-landing { display: flex; }
@@ -51,7 +73,7 @@
             box-sizing: border-box;
         }
 
-        /* --- Landing UI --- */
+        /* Landing Elements */
         .title {
             font-size: 6rem;
             font-weight: 700;
@@ -107,6 +129,7 @@
             color: white;
             max-width: 100%;
             outline: none;
+            -webkit-tap-highlight-color: transparent;
         }
 
         .box-btn:hover {
@@ -128,7 +151,7 @@
             letter-spacing: 0.1em;
         }
 
-        /* --- Destiny Loading UI --- */
+        /* Destiny Loading */
         .loading-text {
             font-size: 1.5rem;
             letter-spacing: 0.3em;
@@ -141,7 +164,7 @@
             100% { opacity: 0.3; text-shadow: 0 0 5px rgba(255,255,255,0.1); }
         }
 
-        /* --- Secret UI --- */
+        /* Secret UI */
         .secret-container {
             display: flex;
             flex-direction: column;
@@ -162,14 +185,9 @@
             word-break: break-all;
             cursor: pointer;
             transition: color 0.2s, border-color 0.2s;
+            user-select: none; /* コピーはタップイベントで行うので選択無効化 */
         }
-        .id-display:hover {
-            color: #fff;
-            border-bottom-color: #666;
-        }
-        .id-display:active {
-            color: #888;
-        }
+        .id-display:active { color: #888; }
 
         .id-input {
             width: 100%;
@@ -183,6 +201,7 @@
             padding: 5px 0;
             outline: none;
             transition: border-color 0.3s;
+            border-radius: 0;
         }
         .id-input:focus { border-bottom: 1px solid #fff; }
         .id-input::placeholder { color: #333; }
@@ -198,6 +217,7 @@
             letter-spacing: 0.2em;
             cursor: pointer;
             transition: all 0.3s;
+            -webkit-tap-highlight-color: transparent;
         }
         .action-btn:hover { background: rgba(255,255,255,0.05); border-color: #888; }
         
@@ -214,10 +234,10 @@
         }
         .cancel-btn:hover { color: #aaa; border-bottom: 1px solid #aaa; }
 
-        /* --- Chat UI --- */
+        /* Chat UI Split */
         .chat-split-container {
             width: 100%;
-            height: 100%;
+            height: 100%; /* 親要素(app-wrapper)にフィット */
             display: flex;
             flex-direction: column;
             position: relative;
@@ -225,24 +245,24 @@
 
         .chat-half {
             width: 100%;
-            height: 50%;
+            flex: 1; /* 高さを等分 */
             display: flex;
             align-items: center;
             justify-content: center;
-            padding: 40px;
+            padding: 20px;
             box-sizing: border-box;
             font-size: 1.5rem;
             line-height: 1.8;
             letter-spacing: 0.1em;
             position: relative;
             transition: background 0.5s;
+            overflow: hidden;
         }
 
         .opponent-area {
             border-bottom: 1px solid #222;
             color: #ccc;
             background: radial-gradient(circle at center, #111 0%, #050505 100%);
-            overflow: hidden;
             word-break: break-all;
         }
         .opponent-label {
@@ -291,16 +311,18 @@
             resize: none;
             line-height: 1.8;
             letter-spacing: 0.1em;
+            border-radius: 0;
+            padding: 0;
+            margin: 0;
         }
         .self-input::placeholder { color: #333; font-size: 1rem; }
 
-        /* 退出ボタン（赤色常時表示に変更） */
         .exit-btn {
             position: absolute;
             top: 20px;
             right: 20px;
-            color: #ff4444; /* 文字色を赤に */
-            border: 1px solid #ff4444; /* 枠線も赤に */
+            color: #ff4444;
+            border: 1px solid #ff4444;
             font-size: 0.8rem;
             cursor: pointer;
             padding: 5px 15px;
@@ -310,11 +332,7 @@
             z-index: 100;
             font-weight: bold;
         }
-        .exit-btn:hover {
-            color: #ff8888;
-            border-color: #ff8888;
-            background: rgba(255, 68, 68, 0.1);
-        }
+        .exit-btn:hover { color: #ff8888; border-color: #ff8888; background: rgba(255, 68, 68, 0.1); }
 
         .evaporate { animation: evaporateAnim 0.8s forwards; }
         @keyframes evaporateAnim {
@@ -328,89 +346,129 @@
             .description { font-size: 0.9rem; margin-bottom: 50px; }
             .buttons-wrapper { flex-direction: column; align-items: center; gap: 20px; }
             .box-btn { width: 100%; max-width: 300px; height: 140px; }
-            .chat-half { padding: 20px; font-size: 1.2rem; }
+            .chat-half { padding: 10px; font-size: 1.2rem; }
             .self-input { font-size: 1.2rem; }
         }
     </style>
 </head>
 <body>
 
-    <section id="screen-landing" class="screen">
-        <div class="container">
-            <div class="title">懺 悔</div>
-            <div class="subtitle">ZANGE - SECRET P2P CHAT</div>
-            <div class="description">
-                <p>ここはサーバーレスの密室。</p>
-                <p>あなたの打つ文字は、即座に相手の網膜へ届く。</p>
-                <p class="faint">ログは一切残らない。</p>
-            </div>
-            <div class="buttons-wrapper">
-                <div class="box-btn" onclick="startDestiny()">
-                    <span class="btn-main">運命</span>
-                    <span class="btn-sub">ランダムマッチング</span>
+    <div id="app-wrapper">
+
+        <section id="screen-landing" class="screen">
+            <div class="container">
+                <div class="title">懺 悔</div>
+                <div class="subtitle">ZANGE - SECRET P2P CHAT</div>
+                <div class="description">
+                    <p>ここはサーバーレスの密室。</p>
+                    <p>あなたの文字は、即座に相手の網膜へ届く。</p>
+                    <p class="faint">ログは一切残らない。</p>
                 </div>
-                <div class="box-btn" onclick="goToSecret()">
-                    <span class="btn-main">密会</span>
-                    <span class="btn-sub">IDを共有して接続</span>
+                <div class="buttons-wrapper">
+                    <div class="box-btn" onclick="startDestiny()">
+                        <span class="btn-main">運命</span>
+                        <span class="btn-sub">ランダムマッチング</span>
+                    </div>
+                    <div class="box-btn" onclick="goToSecret()">
+                        <span class="btn-main">密会</span>
+                        <span class="btn-sub">IDを共有して接続</span>
+                    </div>
                 </div>
             </div>
-        </div>
-    </section>
+        </section>
 
-    <section id="screen-destiny" class="screen">
-        <div class="container">
-            <div class="loading-text">魂の波長を同調中...</div>
-            <div class="subtitle" id="destiny-status">SCANNING THE VOID...</div>
-            <button class="cancel-btn" onclick="goBack()">切断して戻る</button>
-        </div>
-    </section>
+        <section id="screen-destiny" class="screen">
+            <div class="container">
+                <div class="loading-text">魂の波長を同調中...</div>
+                <div class="subtitle" id="destiny-status">SCANNING THE VOID...</div>
+                <button class="cancel-btn" onclick="goBack()">切断して戻る</button>
+            </div>
+        </section>
 
-    <section id="screen-secret" class="screen">
-        <div class="container secret-container">
-            <div class="id-group">
-                <span class="id-label">あなたの識別子（タップでコピー）</span>
-                <div class="id-display" id="my-id" onclick="copyIdToClipboard()">生成中...</div>
+        <section id="screen-secret" class="screen">
+            <div class="container secret-container">
+                <div class="id-group">
+                    <span class="id-label">あなたの識別子（タップでコピー）</span>
+                    <div class="id-display" id="my-id" onclick="copyIdToClipboard()">生成中...</div>
+                </div>
+                <div class="id-group">
+                    <span class="id-label">接続先の識別子</span>
+                    <input type="text" class="id-input" id="target-id-input" placeholder="PASTE ID HERE">
+                </div>
+                <button class="action-btn" id="connect-btn" onclick="connectToPeer()">接続開始</button>
+                <button class="cancel-btn" style="margin-top:10px;" onclick="goBack()">戻る</button>
             </div>
-            <div class="id-group">
-                <span class="id-label">接続先の識別子</span>
-                <input type="text" class="id-input" id="target-id-input" placeholder="PASTE ID HERE">
-            </div>
-            <button class="action-btn" id="connect-btn" onclick="connectToPeer()">接続開始</button>
-            <button class="cancel-btn" style="margin-top:10px;" onclick="goBack()">戻る</button>
-        </div>
-    </section>
+        </section>
 
-    <section id="screen-chat" class="screen">
-        <div class="chat-split-container">
-            <div class="exit-btn" onclick="manualExit()">退出</div>
-            
-            <div class="chat-half opponent-area">
-                <span class="opponent-label">THEY</span>
-                <div class="opponent-text" id="opponent-text"></div>
-            </div>
+        <section id="screen-chat" class="screen">
+            <div class="chat-split-container">
+                <div class="exit-btn" onclick="manualExit()">退出</div>
+                
+                <div class="chat-half opponent-area">
+                    <span class="opponent-label">THEY</span>
+                    <div class="opponent-text" id="opponent-text"></div>
+                </div>
 
-            <div class="chat-half self-area">
-                <span class="self-label">YOU</span>
-                <textarea class="self-input" id="self-input" placeholder="思考を文字に..." spellcheck="false"></textarea>
+                <div class="chat-half self-area">
+                    <span class="self-label">YOU</span>
+                    <textarea class="self-input" id="self-input" placeholder="思考を文字に..." spellcheck="false"></textarea>
+                </div>
             </div>
-        </div>
-    </section>
+        </section>
+        
+    </div>
 
     <script>
-        // --- PeerJS / 状態管理 ---
+        // --- PeerJS / State ---
         let peer = null;
         let conn = null;
         let myPeerId = null;
-        
-        // 部屋定義
         const ROOM_PREFIX = "zange_destiny_room_";
         const MAX_ROOMS = 20; 
+
+        // --- AI SERIOUS MODE: VIEWPORT CONTROL ---
         
-        // --- 画面遷移 ---
+        // 1. スクロール完全禁止 (Nuclear Option)
+        // 画面をなぞる操作(touchmove)を全て無効化。これで物理的にスクロールしなくなる。
+        document.addEventListener('touchmove', function(e) {
+            e.preventDefault();
+        }, { passive: false });
+
+        // 2. Visual Viewport リサイズ監視
+        // キーボードが出た時のサイズ変更を検知して、アプリの高さを強制的に合わせる
+        function resizeApp() {
+            const viewport = window.visualViewport;
+            const appWrapper = document.getElementById('app-wrapper');
+            
+            if (viewport && appWrapper) {
+                // キーボードを避けた実際の高さに設定
+                appWrapper.style.height = `${viewport.height}px`;
+                appWrapper.style.top = `${viewport.offsetTop}px`; // 位置ズレ補正
+                
+                // 強制的にスクロール位置を0に戻す（ブラウザの自動スクロール対策）
+                window.scrollTo(0, 0);
+            }
+        }
+
+        if (window.visualViewport) {
+            window.visualViewport.addEventListener('resize', resizeApp);
+            window.visualViewport.addEventListener('scroll', resizeApp);
+        }
+        
+        // ロード時にも一度実行
+        window.addEventListener('load', resizeApp);
+        window.addEventListener('resize', resizeApp);
+
+        // --- Navigation Logic ---
+
         function switchScreen(screenId) {
             document.querySelectorAll('.screen').forEach(el => el.style.display = 'none');
             const target = document.getElementById(screenId);
-            if(target) target.style.display = 'flex';
+            if(target) {
+                target.style.display = 'flex';
+                // 画面切り替え時にもリサイズをかけてフィッティングを確実にする
+                resizeApp();
+            }
         }
 
         function goBack() {
@@ -420,7 +478,6 @@
             switchScreen('screen-landing');
         }
 
-        // --- 密会モード ---
         function goToSecret() {
             switchScreen('screen-secret');
             initPeerForSecret();
@@ -436,25 +493,19 @@
             peer.on('connection', (c) => handleConnection(c));
         }
 
-        // IDコピー機能
         function copyIdToClipboard() {
             const el = document.getElementById('my-id');
             const text = el.textContent;
-            
             if (!text || text === "生成中..." || text === "COPIED") return;
-
             navigator.clipboard.writeText(text).then(() => {
                 const original = text;
                 el.textContent = "COPIED";
                 el.style.color = "#88ff88"; 
-                
                 setTimeout(() => {
                     el.textContent = original;
                     el.style.color = "#ddd"; 
                 }, 1000);
-            }).catch(err => {
-                console.error("Copy failed", err);
-            });
+            }).catch(err => console.error("Copy failed", err));
         }
 
         function connectToPeer() {
@@ -464,66 +515,47 @@
             handleConnection(connection);
         }
 
-        // --- 運命（高速巡回マッチング）モード ---
-        
         async function startDestiny() {
             switchScreen('screen-destiny');
             document.getElementById('destiny-status').textContent = "SCANNING THE VOID...";
-
-            // まず匿名Peerを作成（ゲスト用）
             if(peer) peer.destroy();
             peer = new Peer();
-
             peer.on('open', async (id) => {
                 myPeerId = id;
-                
-                // 1. 部屋リストを作成してシャッフル
                 const roomList = [];
                 for(let i=1; i<=MAX_ROOMS; i++) roomList.push(ROOM_PREFIX + i);
                 shuffleArray(roomList);
-
-                // 2. 順番にノックしていく（ゲスト参加試行）
                 let joined = false;
                 for (const roomId of roomList) {
                     if (document.getElementById('screen-destiny').style.display === 'none') return;
-                    
                     console.log("Knocking on:", roomId);
                     joined = await tryConnect(roomId);
                     if (joined) {
                         console.log("Joined room:", roomId);
-                        return; // マッチング成功
+                        return; 
                     }
                 }
-
-                // 3. 誰もいなかった -> ホストになる
                 if (!joined) {
                     console.log("No hosts found. Becoming host.");
-                    becomeHost(roomList[0]); // シャッフルされたリストの先頭の部屋を使う
+                    becomeHost(roomList[0]); 
                 }
             });
-
             peer.on('error', (err) => console.log("Peer Error:", err));
         }
 
-        // 接続試行関数
         function tryConnect(roomId) {
             return new Promise((resolve) => {
                 if (!peer || peer.destroyed) return resolve(false);
-
                 const connection = peer.connect(roomId, { reliable: true });
                 let connected = false;
-
                 connection.on('open', () => {
                     if (connected) return;
                     connected = true;
                     handleConnection(connection);
                     resolve(true);
                 });
-
                 peer.on('error', (err) => {});
-
                 connection.on('error', () => {});
-
                 setTimeout(() => {
                     if (!connected) {
                         connection.close();
@@ -533,23 +565,18 @@
             });
         }
 
-        // ホストになる関数
         function becomeHost(roomId) {
             document.getElementById('destiny-status').textContent = "WAITING FOR A SOUL...";
-            
             if(peer) peer.destroy();
             peer = new Peer(roomId);
-
             peer.on('open', (id) => {
                 myPeerId = id;
                 console.log("Hosting room:", id);
             });
-
             peer.on('connection', (c) => {
                 console.log("Guest arrived!");
                 handleConnection(c);
             });
-
             peer.on('error', (err) => {
                 if (err.type === 'unavailable-id') {
                     console.log("Room taken, retrying...");
@@ -565,19 +592,13 @@
             }
         }
 
-        // --- 共通接続処理 ---
         function handleConnection(connection) {
             if (conn && conn.open) {
                 connection.close();
                 return;
             }
-
             conn = connection;
-
-            conn.on('open', () => {
-                startChat();
-            });
-
+            conn.on('open', () => { startChat(); });
             conn.on('data', (data) => {
                 const opponentText = document.getElementById('opponent-text');
                 if (data.type === 'typing') {
@@ -587,18 +608,22 @@
                     animateOpponentSend(opponentText);
                 }
             });
-
             conn.on('close', () => {
                 alert('相手との接続が切れました');
                 goBack();
             });
         }
 
-        // --- Chat UI ---
         function startChat() {
             switchScreen('screen-chat');
             resetChatUI();
-            document.getElementById('self-input').focus();
+            
+            // フォーカス時にブラウザが勝手にスクロールするのを防ぐため
+            // 少し遅延させてからリサイズ処理を走らせる
+            setTimeout(() => {
+                document.getElementById('self-input').focus();
+                resizeApp();
+            }, 300);
         }
 
         function manualExit() {
@@ -611,15 +636,12 @@
             document.getElementById('target-id-input').value = '';
         }
 
-        // --- 入力イベント ---
         const selfInput = document.getElementById('self-input');
-
         selfInput.addEventListener('input', function(e) {
             if (conn && conn.open) {
                 conn.send({ type: 'typing', text: this.value });
             }
         });
-
         selfInput.addEventListener('keydown', function(e) {
             if (e.key === 'Enter') {
                 e.preventDefault();
@@ -628,6 +650,12 @@
                     animateSend(this);
                 }
             }
+        });
+
+        // 画面リサイズ（キーボード開閉）時にスクロール位置がずれた場合、強制的に戻す
+        selfInput.addEventListener('blur', () => {
+             window.scrollTo(0,0);
+             resizeApp();
         });
 
         function animateSend(element) {
