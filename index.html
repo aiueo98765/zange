@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ZANGE - SECRET P2P CHAT</title>
+    <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+    
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@400;700&display=swap');
+
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #050505;
+            color: #ffffff;
+            font-family: 'Shippori Mincho', 'Yu Mincho', serif;
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .screen {
+            display: none;
+            width: 100%;
+            height: 100%;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            animation: fadeIn 1s ease;
+        }
+
+        #screen-landing { display: flex; }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .container {
+            text-align: center;
+            width: 100%;
+            max-width: 1200px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        /* --- Landing UI --- */
+        .title {
+            font-size: 6rem;
+            font-weight: 700;
+            margin-bottom: 10px;
+            letter-spacing: 0.2em;
+            text-shadow: 0 0 15px rgba(255, 255, 255, 0.6), 0 0 30px rgba(255, 255, 255, 0.3);
+            opacity: 0.95;
+            white-space: nowrap; 
+        }
+
+        .subtitle {
+            font-family: 'Courier New', serif;
+            font-size: 0.9rem;
+            color: #888;
+            letter-spacing: 0.8em;
+            margin-bottom: 60px;
+            text-transform: uppercase;
+            opacity: 0.7;
+            text-align: center;
+            line-height: 1.5;
+        }
+
+        .description {
+            margin-bottom: 80px;
+            line-height: 2.5;
+            font-size: 1rem;
+            color: #ddd;
+            width: 90%;
+        }
+        .description p { margin: 0; }
+        .description .faint { color: #555; font-size: 0.9rem; margin-top: 10px; }
+
+        .buttons-wrapper {
+            display: flex;
+            gap: 40px;
+            justify-content: center;
+            flex-wrap: wrap;
+            width: 100%;
+        }
+
+        .box-btn {
+            width: 300px;
+            height: 180px;
+            border: 1px solid #333;
+            background: transparent;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            color: white;
+            max-width: 100%;
+            outline: none;
+        }
+
+        .box-btn:hover {
+            border-color: #666;
+            background-color: rgba(255, 255, 255, 0.02);
+            box-shadow: 0 0 20px rgba(255, 255, 255, 0.05);
+        }
+
+        .btn-main {
+            font-size: 1.8rem;
+            margin-bottom: 10px;
+            letter-spacing: 0.2em;
+            font-weight: 500;
+        }
+
+        .btn-sub {
+            font-size: 0.75rem;
+            color: #666;
+            letter-spacing: 0.1em;
+        }
+
+        /* --- Destiny Loading UI --- */
+        .loading-text {
+            font-size: 1.5rem;
+            letter-spacing: 0.3em;
+            animation: pulse 2s infinite ease-in-out;
+            margin-bottom: 30px;
+        }
+        @keyframes pulse {
+            0% { opacity: 0.3; text-shadow: 0 0 5px rgba(255,255,255,0.1); }
+            50% { opacity: 1; text-shadow: 0 0 20px rgba(255,255,255,0.8); }
+            100% { opacity: 0.3; text-shadow: 0 0 5px rgba(255,255,255,0.1); }
+        }
+
+        /* --- Secret UI --- */
+        .secret-container {
+            display: flex;
+            flex-direction: column;
+            gap: 40px;
+            width: 100%;
+            max-width: 400px;
+        }
+        .id-group { text-align: left; }
+        .id-label { font-size: 0.8rem; color: #666; margin-bottom: 10px; display: block; }
+        
+        .id-display {
+            font-family: 'Courier New', monospace;
+            font-size: 1.2rem;
+            letter-spacing: 0.1em;
+            border-bottom: 1px solid #333;
+            padding-bottom: 5px;
+            color: #ddd;
+            word-break: break-all;
+            cursor: pointer;
+            transition: color 0.2s, border-color 0.2s;
+        }
+        .id-display:hover {
+            color: #fff;
+            border-bottom-color: #666;
+        }
+        .id-display:active {
+            color: #888;
+        }
+
+        .id-input {
+            width: 100%;
+            background: transparent;
+            border: none;
+            border-bottom: 1px solid #555;
+            color: #fff;
+            font-family: 'Courier New', monospace;
+            font-size: 1.2rem;
+            letter-spacing: 0.1em;
+            padding: 5px 0;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+        .id-input:focus { border-bottom: 1px solid #fff; }
+        .id-input::placeholder { color: #333; }
+
+        .action-btn {
+            margin-top: 20px;
+            padding: 15px 0;
+            border: 1px solid #333;
+            background: transparent;
+            color: #fff;
+            font-family: 'Shippori Mincho', serif;
+            font-size: 1rem;
+            letter-spacing: 0.2em;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .action-btn:hover { background: rgba(255,255,255,0.05); border-color: #888; }
+        
+        .cancel-btn {
+            border: none;
+            background: none;
+            color: #555;
+            font-family: 'Shippori Mincho', serif;
+            cursor: pointer;
+            font-size: 0.9rem;
+            margin-top: 50px;
+            border-bottom: 1px solid transparent;
+            transition: all 0.3s;
+        }
+        .cancel-btn:hover { color: #aaa; border-bottom: 1px solid #aaa; }
+
+        /* --- Chat UI --- */
+        .chat-split-container {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        .chat-half {
+            width: 100%;
+            height: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 40px;
+            box-sizing: border-box;
+            font-size: 1.5rem;
+            line-height: 1.8;
+            letter-spacing: 0.1em;
+            position: relative;
+            transition: background 0.5s;
+        }
+
+        .opponent-area {
+            border-bottom: 1px solid #222;
+            color: #ccc;
+            background: radial-gradient(circle at center, #111 0%, #050505 100%);
+            overflow: hidden;
+            word-break: break-all;
+        }
+        .opponent-label {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            font-size: 0.7rem;
+            color: #444;
+            letter-spacing: 0.2em;
+        }
+        .opponent-text {
+            width: 100%;
+            max-width: 800px;
+            text-align: center;
+            white-space: pre-wrap;
+            opacity: 0.8;
+            min-height: 1.5rem;
+        }
+
+        .self-area {
+            color: #fff;
+            background: transparent;
+            display: flex;
+            flex-direction: column;
+        }
+        .self-label {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            font-size: 0.7rem;
+            color: #444;
+            letter-spacing: 0.2em;
+        }
+        
+        .self-input {
+            width: 100%;
+            height: 100%;
+            max-width: 800px;
+            background: transparent;
+            border: none;
+            outline: none;
+            color: #fff;
+            font-family: 'Shippori Mincho', serif;
+            font-size: 1.5rem;
+            text-align: center;
+            resize: none;
+            line-height: 1.8;
+            letter-spacing: 0.1em;
+        }
+        .self-input::placeholder { color: #333; font-size: 1rem; }
+
+        /* 退出ボタン（赤色常時表示に変更） */
+        .exit-btn {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            color: #ff4444; /* 文字色を赤に */
+            border: 1px solid #ff4444; /* 枠線も赤に */
+            font-size: 0.8rem;
+            cursor: pointer;
+            padding: 5px 15px;
+            transition: all 0.3s;
+            letter-spacing: 0.1em;
+            background: rgba(0,0,0,0.8);
+            z-index: 100;
+            font-weight: bold;
+        }
+        .exit-btn:hover {
+            color: #ff8888;
+            border-color: #ff8888;
+            background: rgba(255, 68, 68, 0.1);
+        }
+
+        .evaporate { animation: evaporateAnim 0.8s forwards; }
+        @keyframes evaporateAnim {
+            0% { opacity: 1; transform: scale(1); filter: blur(0); }
+            100% { opacity: 0; transform: scale(1.1); filter: blur(10px); }
+        }
+
+        @media (max-width: 768px) {
+            .title { font-size: 3.5rem; letter-spacing: 0.1em; }
+            .subtitle { font-size: 0.6rem; letter-spacing: 0.2em; margin-bottom: 40px; }
+            .description { font-size: 0.9rem; margin-bottom: 50px; }
+            .buttons-wrapper { flex-direction: column; align-items: center; gap: 20px; }
+            .box-btn { width: 100%; max-width: 300px; height: 140px; }
+            .chat-half { padding: 20px; font-size: 1.2rem; }
+            .self-input { font-size: 1.2rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <section id="screen-landing" class="screen">
+        <div class="container">
+            <div class="title">懺 悔</div>
+            <div class="subtitle">ZANGE - SECRET P2P CHAT</div>
+            <div class="description">
+                <p>ここはサーバーレスの密室。</p>
+                <p>あなたの打つ文字は、即座に相手の網膜へ届く。</p>
+                <p class="faint">ログは一切残らない。</p>
+            </div>
+            <div class="buttons-wrapper">
+                <div class="box-btn" onclick="startDestiny()">
+                    <span class="btn-main">運命</span>
+                    <span class="btn-sub">ランダムマッチング</span>
+                </div>
+                <div class="box-btn" onclick="goToSecret()">
+                    <span class="btn-main">密会</span>
+                    <span class="btn-sub">IDを共有して接続</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="screen-destiny" class="screen">
+        <div class="container">
+            <div class="loading-text">魂の波長を同調中...</div>
+            <div class="subtitle" id="destiny-status">SCANNING THE VOID...</div>
+            <button class="cancel-btn" onclick="goBack()">切断して戻る</button>
+        </div>
+    </section>
+
+    <section id="screen-secret" class="screen">
+        <div class="container secret-container">
+            <div class="id-group">
+                <span class="id-label">あなたの識別子（タップでコピー）</span>
+                <div class="id-display" id="my-id" onclick="copyIdToClipboard()">生成中...</div>
+            </div>
+            <div class="id-group">
+                <span class="id-label">接続先の識別子</span>
+                <input type="text" class="id-input" id="target-id-input" placeholder="PASTE ID HERE">
+            </div>
+            <button class="action-btn" id="connect-btn" onclick="connectToPeer()">接続開始</button>
+            <button class="cancel-btn" style="margin-top:10px;" onclick="goBack()">戻る</button>
+        </div>
+    </section>
+
+    <section id="screen-chat" class="screen">
+        <div class="chat-split-container">
+            <div class="exit-btn" onclick="manualExit()">退出</div>
+            
+            <div class="chat-half opponent-area">
+                <span class="opponent-label">THEY</span>
+                <div class="opponent-text" id="opponent-text"></div>
+            </div>
+
+            <div class="chat-half self-area">
+                <span class="self-label">YOU</span>
+                <textarea class="self-input" id="self-input" placeholder="思考を文字に..." spellcheck="false"></textarea>
+            </div>
+        </div>
+    </section>
+
+    <script>
+        // --- PeerJS / 状態管理 ---
+        let peer = null;
+        let conn = null;
+        let myPeerId = null;
+        
+        // 部屋定義
+        const ROOM_PREFIX = "zange_destiny_room_";
+        const MAX_ROOMS = 20; 
+        
+        // --- 画面遷移 ---
+        function switchScreen(screenId) {
+            document.querySelectorAll('.screen').forEach(el => el.style.display = 'none');
+            const target = document.getElementById(screenId);
+            if(target) target.style.display = 'flex';
+        }
+
+        function goBack() {
+            if (conn) { conn.close(); conn = null; }
+            if (peer) { peer.destroy(); peer = null; }
+            resetChatUI();
+            switchScreen('screen-landing');
+        }
+
+        // --- 密会モード ---
+        function goToSecret() {
+            switchScreen('screen-secret');
+            initPeerForSecret();
+        }
+
+        function initPeerForSecret() {
+            if(peer) peer.destroy();
+            peer = new Peer(); 
+            peer.on('open', (id) => {
+                myPeerId = id;
+                document.getElementById('my-id').textContent = id;
+            });
+            peer.on('connection', (c) => handleConnection(c));
+        }
+
+        // IDコピー機能
+        function copyIdToClipboard() {
+            const el = document.getElementById('my-id');
+            const text = el.textContent;
+            
+            if (!text || text === "生成中..." || text === "COPIED") return;
+
+            navigator.clipboard.writeText(text).then(() => {
+                const original = text;
+                el.textContent = "COPIED";
+                el.style.color = "#88ff88"; 
+                
+                setTimeout(() => {
+                    el.textContent = original;
+                    el.style.color = "#ddd"; 
+                }, 1000);
+            }).catch(err => {
+                console.error("Copy failed", err);
+            });
+        }
+
+        function connectToPeer() {
+            const targetId = document.getElementById('target-id-input').value.trim();
+            if (!targetId) return alert('相手のIDを入力してください');
+            const connection = peer.connect(targetId);
+            handleConnection(connection);
+        }
+
+        // --- 運命（高速巡回マッチング）モード ---
+        
+        async function startDestiny() {
+            switchScreen('screen-destiny');
+            document.getElementById('destiny-status').textContent = "SCANNING THE VOID...";
+
+            // まず匿名Peerを作成（ゲスト用）
+            if(peer) peer.destroy();
+            peer = new Peer();
+
+            peer.on('open', async (id) => {
+                myPeerId = id;
+                
+                // 1. 部屋リストを作成してシャッフル
+                const roomList = [];
+                for(let i=1; i<=MAX_ROOMS; i++) roomList.push(ROOM_PREFIX + i);
+                shuffleArray(roomList);
+
+                // 2. 順番にノックしていく（ゲスト参加試行）
+                let joined = false;
+                for (const roomId of roomList) {
+                    if (document.getElementById('screen-destiny').style.display === 'none') return;
+                    
+                    console.log("Knocking on:", roomId);
+                    joined = await tryConnect(roomId);
+                    if (joined) {
+                        console.log("Joined room:", roomId);
+                        return; // マッチング成功
+                    }
+                }
+
+                // 3. 誰もいなかった -> ホストになる
+                if (!joined) {
+                    console.log("No hosts found. Becoming host.");
+                    becomeHost(roomList[0]); // シャッフルされたリストの先頭の部屋を使う
+                }
+            });
+
+            peer.on('error', (err) => console.log("Peer Error:", err));
+        }
+
+        // 接続試行関数
+        function tryConnect(roomId) {
+            return new Promise((resolve) => {
+                if (!peer || peer.destroyed) return resolve(false);
+
+                const connection = peer.connect(roomId, { reliable: true });
+                let connected = false;
+
+                connection.on('open', () => {
+                    if (connected) return;
+                    connected = true;
+                    handleConnection(connection);
+                    resolve(true);
+                });
+
+                peer.on('error', (err) => {});
+
+                connection.on('error', () => {});
+
+                setTimeout(() => {
+                    if (!connected) {
+                        connection.close();
+                        resolve(false);
+                    }
+                }, 250);
+            });
+        }
+
+        // ホストになる関数
+        function becomeHost(roomId) {
+            document.getElementById('destiny-status').textContent = "WAITING FOR A SOUL...";
+            
+            if(peer) peer.destroy();
+            peer = new Peer(roomId);
+
+            peer.on('open', (id) => {
+                myPeerId = id;
+                console.log("Hosting room:", id);
+            });
+
+            peer.on('connection', (c) => {
+                console.log("Guest arrived!");
+                handleConnection(c);
+            });
+
+            peer.on('error', (err) => {
+                if (err.type === 'unavailable-id') {
+                    console.log("Room taken, retrying...");
+                    setTimeout(startDestiny, 500); 
+                }
+            });
+        }
+
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+        }
+
+        // --- 共通接続処理 ---
+        function handleConnection(connection) {
+            if (conn && conn.open) {
+                connection.close();
+                return;
+            }
+
+            conn = connection;
+
+            conn.on('open', () => {
+                startChat();
+            });
+
+            conn.on('data', (data) => {
+                const opponentText = document.getElementById('opponent-text');
+                if (data.type === 'typing') {
+                    opponentText.textContent = data.text;
+                    opponentText.classList.remove('evaporate');
+                } else if (data.type === 'vanish') {
+                    animateOpponentSend(opponentText);
+                }
+            });
+
+            conn.on('close', () => {
+                alert('相手との接続が切れました');
+                goBack();
+            });
+        }
+
+        // --- Chat UI ---
+        function startChat() {
+            switchScreen('screen-chat');
+            resetChatUI();
+            document.getElementById('self-input').focus();
+        }
+
+        function manualExit() {
+            if(confirm('接続を切りますか？')) goBack();
+        }
+
+        function resetChatUI() {
+            document.getElementById('opponent-text').textContent = '';
+            document.getElementById('self-input').value = '';
+            document.getElementById('target-id-input').value = '';
+        }
+
+        // --- 入力イベント ---
+        const selfInput = document.getElementById('self-input');
+
+        selfInput.addEventListener('input', function(e) {
+            if (conn && conn.open) {
+                conn.send({ type: 'typing', text: this.value });
+            }
+        });
+
+        selfInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                if (this.value.trim() !== '') {
+                    if (conn && conn.open) conn.send({ type: 'vanish' });
+                    animateSend(this);
+                }
+            }
+        });
+
+        function animateSend(element) {
+            const ghost = document.createElement('div');
+            ghost.textContent = element.value;
+            ghost.style.position = 'absolute';
+            ghost.style.width = '100%';
+            ghost.style.textAlign = 'center';
+            ghost.style.top = '50%';
+            ghost.style.left = '50%';
+            ghost.style.transform = 'translate(-50%, -50%)';
+            ghost.style.fontSize = window.getComputedStyle(element).fontSize;
+            ghost.style.color = '#fff';
+            ghost.className = 'evaporate';
+            element.parentElement.appendChild(ghost);
+            element.value = '';
+            if (conn && conn.open) conn.send({ type: 'typing', text: '' });
+            setTimeout(() => { ghost.remove(); }, 1000);
+        }
+
+        function animateOpponentSend(element) {
+             element.classList.add('evaporate');
+             setTimeout(() => {
+                 element.textContent = '';
+                 element.classList.remove('evaporate');
+             }, 800);
+        }
+    </script>
+</body>
+</html>
