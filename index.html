@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>懺悔.com - SECRET CHAT</title>
+    <title>ZANGE - SECRET P2P CHAT</title>
     <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
     
     <style>
@@ -391,13 +391,13 @@
         }
         .self-input::placeholder { color: #222; font-size: 1rem; letter-spacing: 0.2em; }
 
-        /* EXIT BUTTON (RED COLOR UPDATE) */
+        /* EXIT BUTTON (RED) */
         .exit-btn {
             position: absolute;
             top: 20px;
             right: 20px;
-            color: var(--accent-red); /* 赤色に変更 */
-            border: 1px solid rgba(255, 85, 85, 0.4); /* 赤色の枠線 */
+            color: var(--accent-red);
+            border: 1px solid rgba(255, 85, 85, 0.4);
             font-size: 0.65rem;
             cursor: pointer;
             padding: 6px 16px;
@@ -428,7 +428,7 @@
             /* 透明な壁として機能 */
         }
 
-        /* Toast (System Notification) - 真ん中でフェードイン */
+        /* Toast (System Notification) - Centered Fade In */
         #toast-container {
             position: fixed;
             top: 50%;
@@ -577,7 +577,6 @@
     <canvas id="bg-canvas"></canvas>
 
     <div id="toast-overlay"></div>
-
     <div id="toast-container"></div>
 
     <div id="modal-overlay">
@@ -721,20 +720,20 @@
         let peer = null;
         let conn = null;
         let myPeerId = null;
-        const ROOM_PREFIX = "zange_destiny_room_";
-        const MAX_ROOMS = 20; 
+        // キャッシュ回避のためPrefixを一新
+        const ROOM_PREFIX = "zange_v5_destiny_";
+        // ★最適解: 10部屋に絞って密度を高める
+        const MAX_ROOMS = 10; 
+        let hostTimeout = null;
 
-        // --- CUSTOM UI HELPERS (Modified) ---
-        let toastTimeout; // タイマーIDを保持
+        // --- CUSTOM UI HELPERS ---
+        let toastTimeout; 
 
         function showToast(message) {
             const container = document.getElementById('toast-container');
             const overlay = document.getElementById('toast-overlay');
             
-            // 操作をブロックするレイヤーを表示
             overlay.style.display = 'block';
-
-            // 古いトーストがあれば削除
             container.innerHTML = '';
             
             const toast = document.createElement('div');
@@ -742,21 +741,17 @@
             toast.textContent = message;
             container.appendChild(toast);
             
-            // 閉じる処理（共通）
             const dismiss = () => {
-                overlay.style.display = 'none'; // ロック解除
+                overlay.style.display = 'none'; 
                 toast.classList.remove('visible');
                 setTimeout(() => { if(toast.parentNode) toast.remove(); }, 400);
                 if(toastTimeout) clearTimeout(toastTimeout);
             };
 
-            // Overlayクリックで即座に閉じる
             overlay.onclick = dismiss;
 
-            // Animation: 真ん中でフェードイン
             requestAnimationFrame(() => toast.classList.add('visible'));
             
-            // タイマーリセット
             if(toastTimeout) clearTimeout(toastTimeout);
             toastTimeout = setTimeout(dismiss, 3000);
         }
@@ -770,7 +765,6 @@
 
                 msgEl.textContent = message;
                 overlay.style.display = 'flex';
-                // Trigger animation
                 requestAnimationFrame(() => overlay.classList.add('visible'));
 
                 const close = (result) => {
@@ -784,8 +778,6 @@
             });
         }
 
-
-        // --- VIEWPORT CONTROL ---
         document.addEventListener('touchmove', function(e) {
             if(e.target.tagName !== 'TEXTAREA') {
                 e.preventDefault();
@@ -813,9 +805,11 @@
             setTimeout(() => landing.classList.add('active'), 50);
         });
         window.addEventListener('resize', resizeApp);
+        
+        window.addEventListener('beforeunload', () => {
+            if(peer) peer.destroy();
+        });
 
-
-        // --- NAVIGATION ---
         function switchScreen(screenId) {
             const screens = document.querySelectorAll('.screen');
             const target = document.getElementById(screenId);
@@ -833,13 +827,14 @@
 
             if(target) {
                 target.style.display = 'flex';
-                void target.offsetWidth; // Force Reflow
+                void target.offsetWidth; 
                 target.classList.add('active');
                 resizeApp();
             }
         }
 
         function goBack() {
+            if(hostTimeout) clearTimeout(hostTimeout);
             if (conn) { conn.close(); conn = null; }
             if (peer) { peer.destroy(); peer = null; }
             resetChatUI();
@@ -861,7 +856,6 @@
             peer.on('connection', (c) => handleConnection(c));
         }
 
-        // --- COPY FUNCTION (FIXED) ---
         async function copyIdToClipboard() {
             const el = document.getElementById('my-id');
             const text = el.textContent;
@@ -881,7 +875,6 @@
                 textArea.value = text;
                 textArea.setAttribute('readonly', '');
                 
-                // 画面中央に固定し、透明かつ極小にする
                 textArea.style.position = 'fixed';
                 textArea.style.left = '50%';
                 textArea.style.top = '50%';
@@ -932,77 +925,110 @@
             handleConnection(connection);
         }
 
+        // ★★★ AGGRESSIVE MATCHING LOGIC (AI POWERED) ★★★
         async function startDestiny() {
             switchScreen('screen-destiny');
             document.getElementById('destiny-status').textContent = "SCANNING THE VOID";
+            
             if(peer) peer.destroy();
             peer = new Peer();
+            
             peer.on('open', async (id) => {
                 myPeerId = id;
-                const roomList = [];
-                for(let i=1; i<=MAX_ROOMS; i++) roomList.push(ROOM_PREFIX + i);
-                shuffleArray(roomList);
-                let joined = false;
-                for (const roomId of roomList) {
-                    if (!document.getElementById('screen-destiny').classList.contains('active')) return;
-                    console.log("Knocking on:", roomId);
-                    joined = await tryConnect(roomId);
-                    if (joined) {
-                        return; 
-                    }
-                }
-                if (!joined) {
-                    becomeHost(roomList[0]); 
-                }
+                // 1から順に部屋を「探す」->「取る」のループ
+                searchAndDestroy(1);
             });
             peer.on('error', (err) => console.log("Peer Error:", err));
+        }
+
+        // 指定された部屋番号へ接続を試みる、だめなら取る
+        async function searchAndDestroy(roomIndex) {
+            if (!document.getElementById('screen-destiny').classList.contains('active')) return;
+            
+            // ループバック：MAX_ROOMSを超えたら1に戻る
+            if(roomIndex > MAX_ROOMS) {
+                setTimeout(() => searchAndDestroy(1), 500); 
+                return;
+            }
+
+            const roomId = ROOM_PREFIX + roomIndex;
+            console.log("Checking Room:", roomId);
+
+            // ① まずゲストとして接続を試みる
+            const connected = await tryConnect(roomId);
+            if (connected) return; // 接続成功なら終了
+
+            // ② 接続できなかったら、その部屋をホストとして取りに行く
+            console.log("Room empty/ghost. Attempting to Host:", roomId);
+            attemptHost(roomIndex);
         }
 
         function tryConnect(roomId) {
             return new Promise((resolve) => {
                 if (!peer || peer.destroyed) return resolve(false);
+                
                 const connection = peer.connect(roomId, { reliable: true });
                 let connected = false;
+                
                 connection.on('open', () => {
-                    if (connected) return;
                     connected = true;
                     handleConnection(connection);
                     resolve(true);
                 });
-                peer.on('error', (err) => {});
+                
+                // エラーは無視して次へ
+                peer.on('error', (err) => {}); 
                 connection.on('error', () => {});
+                
+                // ★高速化: 0.3秒で反応なければ即次へ（Ghosts対策）
                 setTimeout(() => {
                     if (!connected) {
                         connection.close();
                         resolve(false);
                     }
-                }, 250);
+                }, 300);
             });
         }
 
-        function becomeHost(roomId) {
-            document.getElementById('destiny-status').textContent = "WAITING FOR A SOUL";
+        function attemptHost(roomIndex) {
+            // 現在のPeerを破棄して、指定IDで作り直す
             if(peer) peer.destroy();
+            const roomId = ROOM_PREFIX + roomIndex;
+            
             peer = new Peer(roomId);
+            
             peer.on('open', (id) => {
                 myPeerId = id;
-                console.log("Hosting room:", id);
+                console.log("Hosting:", id);
+                document.getElementById('destiny-status').textContent = "WAITING FOR A SOUL";
+                
+                // ★待機時間短縮: 4秒待って誰も来なければ部屋を放棄して次の部屋を探しに行く
+                // これにより「両方がホストになって待ちぼうけ」を回避
+                if(hostTimeout) clearTimeout(hostTimeout);
+                hostTimeout = setTimeout(() => {
+                    if(!conn || !conn.open) {
+                        console.log("Timeout. Moving to next room...");
+                        searchAndDestroy(roomIndex + 1); // 次の部屋へ移動
+                    }
+                }, 4000);
             });
+            
             peer.on('connection', (c) => {
+                if(hostTimeout) clearTimeout(hostTimeout);
                 handleConnection(c);
             });
+            
             peer.on('error', (err) => {
+                // IDが取れなかった（タッチの差で誰かが入った）場合
                 if (err.type === 'unavailable-id') {
-                    setTimeout(startDestiny, 500); 
+                    console.log("Room taken. Retrying connect...");
+                    // もう一度ゲストとして接続を試みる（相手がホストになった直後だから）
+                    setTimeout(async () => {
+                        const joined = await tryConnect(roomId);
+                        if(!joined) searchAndDestroy(roomIndex + 1); // だめなら次へ
+                    }, 200);
                 }
             });
-        }
-
-        function shuffleArray(array) {
-            for (let i = array.length - 1; i > 0; i--) {
-                const j = Math.floor(Math.random() * (i + 1));
-                [array[i], array[j]] = [array[j], array[i]];
-            }
         }
 
         function handleConnection(connection) {
@@ -1012,6 +1038,7 @@
             }
             conn = connection;
             conn.on('open', () => { 
+                if(hostTimeout) clearTimeout(hostTimeout);
                 startChat(); 
                 showToast("接続されました");
             });
@@ -1034,7 +1061,6 @@
         function startChat() {
             switchScreen('screen-chat');
             resetChatUI();
-            
             setTimeout(() => {
                 document.getElementById('self-input').focus();
                 resizeApp();
