@@ -3,33 +3,62 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>懺悔.com - ZANGE P2P CHAT</title>
+    <title>ZANGE - SECRET P2P CHAT</title>
     <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
     
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@400;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@400;500;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;500&display=swap');
 
         /* ----------------------------------------------------
-           AI SERIOUS MODE: LAYOUT LOCKDOWN
-           画面を物理的に固定するための設定
-        ---------------------------------------------------- */
+           CORE SETTINGS
+           ---------------------------------------------------- */
+        :root {
+            --bg-color: #030303;
+            --text-main: #e0e0e0;
+            --text-dim: #666;
+            --accent-green: #50fa7b; /* ネオングリーン */
+            --accent-red: #ff5555;   /* 警告色 */
+            --border-color: rgba(255, 255, 255, 0.1);
+            --border-glow: rgba(255, 255, 255, 0.3);
+            --font-jp: 'Shippori Mincho', serif;
+            --font-en: 'Cormorant Garamond', serif;
+        }
+
         html, body {
             margin: 0;
             padding: 0;
             width: 100%;
-            height: 100%; /* dvhなどはJSで制御するため100%で固定 */
-            background-color: #050505;
-            color: #ffffff;
-            font-family: 'Shippori Mincho', 'Yu Mincho', serif;
-            overflow: hidden; /* スクロールバー完全非表示 */
-            position: fixed; /* 画面をブラウザ枠に鋲打ちする */
+            height: 100%;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            font-family: var(--font-jp);
+            overflow: hidden; /* スクロール完全禁止 */
+            position: fixed;
             top: 0;
             left: 0;
-            touch-action: none; /* ピンチズームやパン操作を無効化 */
+            touch-action: none;
             -webkit-overflow-scrolling: touch;
         }
 
-        /* アプリ全体のラッパー（JSで高さを1px単位で制御） */
+        /* ノイズエフェクト */
+        .noise-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none;
+            z-index: 999;
+            opacity: 0.03;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+        }
+
+        /* 背景パーティクル */
+        #bg-canvas {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            z-index: -1;
+            opacity: 0.5;
+        }
+
         #app-wrapper {
             width: 100%;
             height: 100%;
@@ -37,11 +66,12 @@
             justify-content: center;
             align-items: center;
             position: relative;
+            background: radial-gradient(circle at center, rgba(20,20,20,0.5) 0%, rgba(0,0,0,0.9) 100%);
         }
 
         /* ----------------------------------------------------
-           UI COMPONENTS
-        ---------------------------------------------------- */
+           UI COMPONENTS - SCREEN & TRANSITIONS
+           ---------------------------------------------------- */
 
         .screen {
             display: none;
@@ -50,194 +80,248 @@
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            animation: fadeIn 1s ease;
             box-sizing: border-box;
+            
+            position: absolute;
+            top: 0;
+            left: 0;
+            
+            opacity: 0;
+            transform: scale(0.98);
+            filter: blur(10px);
+            transition: opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1), 
+                        transform 0.6s cubic-bezier(0.16, 1, 0.3, 1),
+                        filter 0.6s ease;
+            z-index: 10;
         }
 
-        #screen-landing { display: flex; }
+        .screen.active {
+            opacity: 1;
+            transform: scale(1);
+            filter: blur(0);
+            z-index: 20;
+        }
 
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
+        .screen.exit {
+            opacity: 0;
+            transform: scale(1.05);
+            filter: blur(5px);
+            z-index: 9;
         }
 
         .container {
             text-align: center;
             width: 100%;
-            max-width: 1200px;
+            max-width: 1000px;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            padding: 20px;
+            padding: 30px;
             box-sizing: border-box;
+            position: relative;
         }
 
-        /* Landing Elements */
+        /* Title Typography */
+        .title-wrap { margin-bottom: 5px; }
+        
         .title {
-            font-size: 6rem;
-            font-weight: 700;
-            margin-bottom: 10px;
-            letter-spacing: 0.2em;
-            text-shadow: 0 0 15px rgba(255, 255, 255, 0.6), 0 0 30px rgba(255, 255, 255, 0.3);
-            opacity: 0.95;
-            white-space: nowrap; 
+            font-size: clamp(4.5rem, 12vw, 8rem);
+            font-weight: 500;
+            letter-spacing: 0.3em;
+            color: #fff;
+            text-shadow: 0 0 30px rgba(255,255,255,0.25);
+            white-space: nowrap;
+            margin-left: 0.15em;
         }
 
         .subtitle {
-            font-family: 'Courier New', serif;
-            font-size: 0.9rem;
-            color: #888;
-            letter-spacing: 0.8em;
-            margin-bottom: 60px;
+            font-family: var(--font-en);
+            font-size: 0.8rem;
+            color: var(--text-dim);
+            letter-spacing: 0.6em;
+            margin-bottom: 30px;
             text-transform: uppercase;
-            opacity: 0.7;
-            text-align: center;
-            line-height: 1.5;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            padding-bottom: 10px;
         }
 
         .description {
-            margin-bottom: 80px;
-            line-height: 2.5;
-            font-size: 1rem;
-            color: #ddd;
-            width: 90%;
+            margin-bottom: 50px;
+            line-height: 2.2;
+            font-size: 1.3rem; 
+            color: #ccc;
+            font-feature-settings: "palt";
         }
         .description p { margin: 0; }
-        .description .faint { color: #555; font-size: 0.9rem; margin-top: 10px; }
+        .description .faint { 
+            color: #555; 
+            font-size: 0.85rem; 
+            margin-top: 15px; 
+            font-family: var(--font-en);
+            letter-spacing: 0.15em;
+        }
 
+        /* Buttons */
         .buttons-wrapper {
             display: flex;
-            gap: 40px;
+            gap: 30px;
             justify-content: center;
-            flex-wrap: wrap;
             width: 100%;
+            max-width: 900px;
         }
 
         .box-btn {
-            width: 300px;
+            flex: 1;
+            max-width: 340px;
             height: 180px;
-            border: 1px solid #333;
-            background: transparent;
+            border: 1px solid var(--border-color);
+            background: rgba(255,255,255,0.015);
+            backdrop-filter: blur(5px);
             display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
             cursor: pointer;
-            transition: all 0.3s ease;
-            text-decoration: none;
-            color: white;
-            max-width: 100%;
-            outline: none;
-            -webkit-tap-highlight-color: transparent;
+            transition: all 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .box-btn::after {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, transparent 100%);
+            opacity: 0;
+            transition: opacity 0.4s ease;
         }
 
         .box-btn:hover {
-            border-color: #666;
-            background-color: rgba(255, 255, 255, 0.02);
-            box-shadow: 0 0 20px rgba(255, 255, 255, 0.05);
+            border-color: var(--border-glow);
+            transform: translateY(-4px);
+            box-shadow: 0 15px 50px -10px rgba(0,0,0,0.6);
         }
+        
+        .box-btn:hover::after { opacity: 1; }
 
         .btn-main {
             font-size: 1.8rem;
             margin-bottom: 10px;
-            letter-spacing: 0.2em;
-            font-weight: 500;
+            letter-spacing: 0.3em;
+            font-weight: 400;
+            color: #fff;
+            text-shadow: 0 0 15px rgba(255,255,255,0.15);
         }
 
         .btn-sub {
+            font-family: var(--font-en);
             font-size: 0.75rem;
-            color: #666;
-            letter-spacing: 0.1em;
+            color: var(--text-dim);
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
         }
 
         /* Destiny Loading */
-        .loading-text {
-            font-size: 1.5rem;
-            letter-spacing: 0.3em;
-            animation: pulse 2s infinite ease-in-out;
+        .loading-circle {
+            width: 50px;
+            height: 50px;
+            border: 1px solid rgba(255,255,255,0.1);
+            border-top: 1px solid #fff;
+            border-radius: 50%;
+            animation: spin 1.2s infinite cubic-bezier(0.5, 0, 0.5, 1);
             margin-bottom: 30px;
+            box-shadow: 0 0 20px rgba(255,255,255,0.05);
         }
-        @keyframes pulse {
-            0% { opacity: 0.3; text-shadow: 0 0 5px rgba(255,255,255,0.1); }
-            50% { opacity: 1; text-shadow: 0 0 20px rgba(255,255,255,0.8); }
-            100% { opacity: 0.3; text-shadow: 0 0 5px rgba(255,255,255,0.1); }
+
+        .loading-text {
+            font-size: 1.1rem;
+            letter-spacing: 0.4em;
+            font-weight: 300;
+            animation: breathe 3s infinite ease-in-out;
+            margin-bottom: 10px;
         }
 
         /* Secret UI */
         .secret-container {
-            display: flex;
-            flex-direction: column;
-            gap: 40px;
             width: 100%;
             max-width: 400px;
+            gap: 40px;
         }
-        .id-group { text-align: left; }
-        .id-label { font-size: 0.8rem; color: #666; margin-bottom: 10px; display: block; }
+        .id-group { text-align: left; width: 100%; }
+        .id-label { 
+            font-family: var(--font-en);
+            font-size: 0.7rem; 
+            color: var(--text-dim); 
+            margin-bottom: 10px; 
+            display: block; 
+            letter-spacing: 0.2em;
+        }
         
         .id-display {
             font-family: 'Courier New', monospace;
             font-size: 1.2rem;
             letter-spacing: 0.1em;
-            border-bottom: 1px solid #333;
-            padding-bottom: 5px;
-            color: #ddd;
-            word-break: break-all;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 8px;
+            color: #fff;
             cursor: pointer;
-            transition: color 0.2s, border-color 0.2s;
-            user-select: none; /* コピーはタップイベントで行うので選択無効化 */
+            transition: all 0.3s;
+            word-break: break-all;
         }
-        .id-display:active { color: #888; }
+        .id-display:hover { border-color: var(--border-glow); }
 
         .id-input {
             width: 100%;
             background: transparent;
             border: none;
-            border-bottom: 1px solid #555;
+            border-bottom: 1px solid var(--border-color);
             color: #fff;
             font-family: 'Courier New', monospace;
             font-size: 1.2rem;
             letter-spacing: 0.1em;
-            padding: 5px 0;
+            padding: 8px 0;
             outline: none;
-            transition: border-color 0.3s;
             border-radius: 0;
+            transition: border-color 0.3s;
         }
         .id-input:focus { border-bottom: 1px solid #fff; }
-        .id-input::placeholder { color: #333; }
 
         .action-btn {
-            margin-top: 20px;
-            padding: 15px 0;
-            border: 1px solid #333;
-            background: transparent;
+            width: 100%;
+            padding: 16px 0;
+            border: 1px solid var(--border-color);
+            background: rgba(255,255,255,0.02);
             color: #fff;
-            font-family: 'Shippori Mincho', serif;
-            font-size: 1rem;
-            letter-spacing: 0.2em;
+            font-family: var(--font-jp);
+            font-size: 0.9rem;
+            letter-spacing: 0.3em;
             cursor: pointer;
             transition: all 0.3s;
-            -webkit-tap-highlight-color: transparent;
         }
-        .action-btn:hover { background: rgba(255,255,255,0.05); border-color: #888; }
+        .action-btn:hover { 
+            background: rgba(255,255,255,0.06); 
+            border-color: var(--border-glow); 
+            box-shadow: 0 0 20px rgba(255,255,255,0.05);
+        }
         
         .cancel-btn {
             border: none;
             background: none;
             color: #555;
-            font-family: 'Shippori Mincho', serif;
+            font-family: var(--font-jp);
             cursor: pointer;
-            font-size: 0.9rem;
-            margin-top: 50px;
-            border-bottom: 1px solid transparent;
-            transition: all 0.3s;
+            font-size: 0.8rem;
+            margin-top: 20px;
+            letter-spacing: 0.1em;
+            transition: color 0.3s;
         }
-        .cancel-btn:hover { color: #aaa; border-bottom: 1px solid #aaa; }
+        .cancel-btn:hover { color: #fff; }
 
         /* Chat UI Split */
         .chat-split-container {
             width: 100%;
-            height: 100%; /* 親要素(app-wrapper)にフィット */
+            height: 100%;
             display: flex;
             flex-direction: column;
             position: relative;
@@ -245,7 +329,7 @@
 
         .chat-half {
             width: 100%;
-            flex: 1; /* 高さを等分 */
+            flex: 1;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -253,49 +337,38 @@
             box-sizing: border-box;
             font-size: 1.5rem;
             line-height: 1.8;
-            letter-spacing: 0.1em;
+            letter-spacing: 0.15em;
             position: relative;
-            transition: background 0.5s;
             overflow: hidden;
         }
 
         .opponent-area {
-            border-bottom: 1px solid #222;
-            color: #ccc;
-            background: radial-gradient(circle at center, #111 0%, #050505 100%);
-            word-break: break-all;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            background: linear-gradient(to bottom, #080808, #030303);
         }
-        .opponent-label {
+
+        .opponent-label, .self-label {
             position: absolute;
-            top: 20px;
-            left: 20px;
-            font-size: 0.7rem;
-            color: #444;
-            letter-spacing: 0.2em;
+            font-family: var(--font-en);
+            font-size: 0.6rem;
+            color: #333;
+            letter-spacing: 0.3em;
+            pointer-events: none;
         }
+        .opponent-label { top: 30px; left: 30px; }
+        .self-label { bottom: 30px; right: 30px; }
+
         .opponent-text {
             width: 100%;
             max-width: 800px;
             text-align: center;
             white-space: pre-wrap;
-            opacity: 0.8;
+            color: #ccc;
+            text-shadow: 0 0 8px rgba(255,255,255,0.1);
             min-height: 1.5rem;
         }
 
-        .self-area {
-            color: #fff;
-            background: transparent;
-            display: flex;
-            flex-direction: column;
-        }
-        .self-label {
-            position: absolute;
-            bottom: 20px;
-            right: 20px;
-            font-size: 0.7rem;
-            color: #444;
-            letter-spacing: 0.2em;
-        }
+        .self-area { background: transparent; flex-direction: column; }
         
         .self-input {
             width: 100%;
@@ -305,63 +378,229 @@
             border: none;
             outline: none;
             color: #fff;
-            font-family: 'Shippori Mincho', serif;
+            font-family: var(--font-jp);
             font-size: 1.5rem;
             text-align: center;
             resize: none;
             line-height: 1.8;
-            letter-spacing: 0.1em;
+            letter-spacing: 0.15em;
             border-radius: 0;
             padding: 0;
             margin: 0;
+            text-shadow: 0 0 10px rgba(255,255,255,0.3);
         }
-        .self-input::placeholder { color: #333; font-size: 1rem; }
+        .self-input::placeholder { color: #222; font-size: 1rem; letter-spacing: 0.2em; }
 
+        /* EXIT BUTTON (RED COLOR UPDATE) */
         .exit-btn {
             position: absolute;
             top: 20px;
             right: 20px;
-            color: #ff4444;
-            border: 1px solid #ff4444;
-            font-size: 0.8rem;
+            color: var(--accent-red); /* 赤色に変更 */
+            border: 1px solid rgba(255, 85, 85, 0.4); /* 赤色の枠線 */
+            font-size: 0.65rem;
             cursor: pointer;
-            padding: 5px 15px;
+            padding: 6px 16px;
             transition: all 0.3s;
-            letter-spacing: 0.1em;
-            background: rgba(0,0,0,0.8);
+            letter-spacing: 0.2em;
+            background: rgba(0,0,0,0.6);
+            backdrop-filter: blur(4px);
             z-index: 100;
-            font-weight: bold;
+            font-family: var(--font-en);
         }
-        .exit-btn:hover { color: #ff8888; border-color: #ff8888; background: rgba(255, 68, 68, 0.1); }
+        .exit-btn:hover { 
+            color: #ff8888; 
+            border-color: #ff8888;
+            background: rgba(255, 85, 85, 0.15);
+            box-shadow: 0 0 15px rgba(255, 85, 85, 0.2);
+        }
 
-        .evaporate { animation: evaporateAnim 0.8s forwards; }
+        /* ----------------------------------------------------
+           NEW UI: CUSTOM TOAST & MODAL (CENTERED)
+           ---------------------------------------------------- */
+        
+        /* Toast Overlay (Invisible blocker) */
+        #toast-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 1999; /* Below toast, above everything else */
+            display: none;
+            /* 透明な壁として機能 */
+        }
+
+        /* Toast (System Notification) - 真ん中でフェードイン */
+        #toast-container {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 2000;
+            pointer-events: none; /* コンテナ自体はイベントを通す */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 100%;
+        }
+        .toast {
+            background: rgba(10, 10, 10, 0.9);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.2);
+            padding: 20px 40px;
+            color: #fff;
+            font-family: var(--font-jp);
+            font-size: 1rem;
+            letter-spacing: 0.2em;
+            opacity: 0;
+            transform: scale(0.9);
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            box-shadow: 0 10px 40px rgba(0,0,0,0.8);
+            border-radius: 2px;
+            pointer-events: auto; /* トースト自体はクリック可能 */
+        }
+        .toast.visible {
+            opacity: 1;
+            transform: scale(1);
+        }
+
+        /* Modal (System Confirm) */
+        #modal-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8);
+            backdrop-filter: blur(8px);
+            z-index: 3000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        #modal-overlay.visible {
+            opacity: 1;
+        }
+        .modal-box {
+            background: #050505;
+            border: 1px solid rgba(255,255,255,0.15);
+            padding: 50px;
+            text-align: center;
+            max-width: 320px;
+            width: 85%;
+            transform: scale(0.95);
+            transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            box-shadow: 0 0 50px rgba(0,0,0,0.9);
+        }
+        #modal-overlay.visible .modal-box {
+            transform: scale(1);
+        }
+        .modal-text {
+            color: #eee;
+            font-size: 1.1rem;
+            margin-bottom: 40px;
+            letter-spacing: 0.15em;
+            line-height: 1.6;
+        }
+        .modal-buttons {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+        }
+        .modal-btn {
+            border: 1px solid rgba(255,255,255,0.2);
+            background: transparent;
+            color: #fff;
+            padding: 12px 25px;
+            cursor: pointer;
+            font-family: var(--font-en);
+            font-size: 0.85rem;
+            letter-spacing: 0.1em;
+            transition: all 0.3s;
+            min-width: 90px;
+        }
+        .modal-btn:hover {
+            background: rgba(255,255,255,0.1);
+            border-color: #fff;
+        }
+        .modal-btn.danger:hover {
+            border-color: #ff5555;
+            color: #ff5555;
+            background: rgba(255, 85, 85, 0.1);
+        }
+
+
+        /* Animations */
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        @keyframes breathe {
+            0%, 100% { opacity: 0.5; text-shadow: 0 0 5px rgba(255,255,255,0); }
+            50% { opacity: 1; text-shadow: 0 0 15px rgba(255,255,255,0.5); }
+        }
+
+        .evaporate { animation: evaporateAnim 1.2s forwards cubic-bezier(0.2, 0.8, 0.2, 1); }
         @keyframes evaporateAnim {
             0% { opacity: 1; transform: scale(1); filter: blur(0); }
-            100% { opacity: 0; transform: scale(1.1); filter: blur(10px); }
+            100% { opacity: 0; transform: scale(1.15); filter: blur(15px); letter-spacing: 0.5em; }
         }
 
+        /* ----------------------------------------------------
+           MOBILE OPTIMIZATION
+           ---------------------------------------------------- */
         @media (max-width: 768px) {
-            .title { font-size: 3.5rem; letter-spacing: 0.1em; }
-            .subtitle { font-size: 0.6rem; letter-spacing: 0.2em; margin-bottom: 40px; }
-            .description { font-size: 0.9rem; margin-bottom: 50px; }
-            .buttons-wrapper { flex-direction: column; align-items: center; gap: 20px; }
-            .box-btn { width: 100%; max-width: 300px; height: 140px; }
-            .chat-half { padding: 10px; font-size: 1.2rem; }
+            .container { padding: 15px; }
+            .title { font-size: 4.5rem; margin-bottom: 5px; }
+            .subtitle { font-size: 0.65rem; margin-bottom: 25px; letter-spacing: 0.4em; }
+            
+            .description { font-size: 1.0rem; margin-bottom: 30px; line-height: 1.8; } 
+
+            .buttons-wrapper {
+                flex-direction: column;
+                align-items: center;
+                gap: 15px;
+                max-width: 340px;
+            }
+            .box-btn {
+                width: 100%;
+                height: 135px; 
+            }
+            .btn-main { font-size: 1.5rem; }
+            .btn-sub { font-size: 0.65rem; }
+
+            .chat-half { padding: 15px; font-size: 1.2rem; }
             .self-input { font-size: 1.2rem; }
         }
     </style>
 </head>
 <body>
 
+    <div class="noise-overlay"></div>
+    <canvas id="bg-canvas"></canvas>
+
+    <div id="toast-overlay"></div>
+
+    <div id="toast-container"></div>
+
+    <div id="modal-overlay">
+        <div class="modal-box">
+            <div class="modal-text" id="modal-message"></div>
+            <div class="modal-buttons">
+                <button class="modal-btn" id="modal-yes">YES</button>
+                <button class="modal-btn danger" id="modal-no">NO</button>
+            </div>
+        </div>
+    </div>
+
     <div id="app-wrapper">
 
         <section id="screen-landing" class="screen">
             <div class="container">
-                <div class="title">懺 悔</div>
+                <div class="title-wrap">
+                    <div class="title">懺 悔</div>
+                </div>
                 <div class="subtitle">ZANGE - SECRET P2P CHAT</div>
                 <div class="description">
-                    <p>ここはサーバーレスの密室。</p>
-                    <p>あなたの文字は、即座に相手の網膜へ届く。</p>
+                    <p>サーバーレスの深淵へようこそ。</p>
+                    <p>あなたの文字は、即座に相手の網膜に届く。</p>
                     <p class="faint">ログは一切残らない。</p>
                 </div>
                 <div class="buttons-wrapper">
@@ -379,30 +618,31 @@
 
         <section id="screen-destiny" class="screen">
             <div class="container">
-                <div class="loading-text">魂の波長を同調中...</div>
-                <div class="subtitle" id="destiny-status">SCANNING THE VOID...</div>
-                <button class="cancel-btn" onclick="goBack()">切断して戻る</button>
+                <div class="loading-circle"></div>
+                <div class="loading-text">魂を同調中...</div>
+                <div class="subtitle" id="destiny-status" style="margin-bottom:0; opacity:0.7; border:none;">SCANNING THE VOID</div>
+                <button class="cancel-btn" onclick="goBack()">ABORT</button>
             </div>
         </section>
 
         <section id="screen-secret" class="screen">
             <div class="container secret-container">
                 <div class="id-group">
-                    <span class="id-label">あなたの識別子（タップでコピー）</span>
-                    <div class="id-display" id="my-id" onclick="copyIdToClipboard()">生成中...</div>
+                    <span class="id-label">YOUR IDENTITY</span>
+                    <div class="id-display" id="my-id" onclick="copyIdToClipboard()">GENERATING...</div>
                 </div>
                 <div class="id-group">
-                    <span class="id-label">接続先の識別子</span>
-                    <input type="text" class="id-input" id="target-id-input" placeholder="PASTE ID HERE">
+                    <span class="id-label">TARGET IDENTITY</span>
+                    <input type="text" class="id-input" id="target-id-input" placeholder="PASTE ID HERE" spellcheck="false" autocomplete="off">
                 </div>
-                <button class="action-btn" id="connect-btn" onclick="connectToPeer()">接続開始</button>
-                <button class="cancel-btn" style="margin-top:10px;" onclick="goBack()">戻る</button>
+                <button class="action-btn" id="connect-btn" onclick="connectToPeer()">CONNECT</button>
+                <button class="cancel-btn" onclick="goBack()" style="margin-top:10px;">RETURN</button>
             </div>
         </section>
 
         <section id="screen-chat" class="screen">
             <div class="chat-split-container">
-                <div class="exit-btn" onclick="manualExit()">退出</div>
+                <div class="exit-btn" onclick="manualExit()">EXIT</div>
                 
                 <div class="chat-half opponent-area">
                     <span class="opponent-label">THEY</span>
@@ -411,7 +651,7 @@
 
                 <div class="chat-half self-area">
                     <span class="self-label">YOU</span>
-                    <textarea class="self-input" id="self-input" placeholder="思考を文字に..." spellcheck="false"></textarea>
+                    <textarea class="self-input" id="self-input" placeholder="思考を吐き出す..." spellcheck="false"></textarea>
                 </div>
             </div>
         </section>
@@ -419,33 +659,145 @@
     </div>
 
     <script>
-        // --- PeerJS / State ---
+        // --- VISUAL EFFECTS: PARTICLES ---
+        const canvas = document.getElementById('bg-canvas');
+        const ctx = canvas.getContext('2d');
+        let particles = [];
+        
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        class Particle {
+            constructor() {
+                this.x = Math.random() * canvas.width;
+                this.y = Math.random() * canvas.height;
+                this.size = Math.random() * 1.5;
+                this.speedX = (Math.random() - 0.5) * 0.15;
+                this.speedY = (Math.random() - 0.5) * 0.15;
+                this.opacity = Math.random() * 0.4;
+            }
+            update() {
+                this.x += this.speedX;
+                this.y += this.speedY;
+                if(this.x < 0) this.x = canvas.width;
+                if(this.x > canvas.width) this.x = 0;
+                if(this.y < 0) this.y = canvas.height;
+                if(this.y > canvas.height) this.y = 0;
+            }
+            draw() {
+                ctx.fillStyle = `rgba(255, 255, 255, ${this.opacity})`;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        function initParticles() {
+            particles = [];
+            const count = Math.min(window.innerWidth / 10, 80);
+            for (let i = 0; i < count; i++) {
+                particles.push(new Particle());
+            }
+        }
+
+        function animateParticles() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            for (let i = 0; i < particles.length; i++) {
+                particles[i].update();
+                particles[i].draw();
+            }
+            requestAnimationFrame(animateParticles);
+        }
+
+        initParticles();
+        animateParticles();
+
+
+        // --- LOGIC: PEERJS & STATE ---
         let peer = null;
         let conn = null;
         let myPeerId = null;
         const ROOM_PREFIX = "zange_destiny_room_";
         const MAX_ROOMS = 20; 
 
-        // --- AI SERIOUS MODE: VIEWPORT CONTROL ---
-        
-        // 1. スクロール完全禁止 (Nuclear Option)
-        // 画面をなぞる操作(touchmove)を全て無効化。これで物理的にスクロールしなくなる。
+        // --- CUSTOM UI HELPERS (Modified) ---
+        let toastTimeout; // タイマーIDを保持
+
+        function showToast(message) {
+            const container = document.getElementById('toast-container');
+            const overlay = document.getElementById('toast-overlay');
+            
+            // 操作をブロックするレイヤーを表示
+            overlay.style.display = 'block';
+
+            // 古いトーストがあれば削除
+            container.innerHTML = '';
+            
+            const toast = document.createElement('div');
+            toast.className = 'toast';
+            toast.textContent = message;
+            container.appendChild(toast);
+            
+            // 閉じる処理（共通）
+            const dismiss = () => {
+                overlay.style.display = 'none'; // ロック解除
+                toast.classList.remove('visible');
+                setTimeout(() => { if(toast.parentNode) toast.remove(); }, 400);
+                if(toastTimeout) clearTimeout(toastTimeout);
+            };
+
+            // Overlayクリックで即座に閉じる
+            overlay.onclick = dismiss;
+
+            // Animation: 真ん中でフェードイン
+            requestAnimationFrame(() => toast.classList.add('visible'));
+            
+            // タイマーリセット
+            if(toastTimeout) clearTimeout(toastTimeout);
+            toastTimeout = setTimeout(dismiss, 3000);
+        }
+
+        function showConfirm(message) {
+            return new Promise((resolve) => {
+                const overlay = document.getElementById('modal-overlay');
+                const msgEl = document.getElementById('modal-message');
+                const btnYes = document.getElementById('modal-yes');
+                const btnNo = document.getElementById('modal-no');
+
+                msgEl.textContent = message;
+                overlay.style.display = 'flex';
+                // Trigger animation
+                requestAnimationFrame(() => overlay.classList.add('visible'));
+
+                const close = (result) => {
+                    overlay.classList.remove('visible');
+                    setTimeout(() => overlay.style.display = 'none', 300);
+                    resolve(result);
+                };
+
+                btnYes.onclick = () => close(true);
+                btnNo.onclick = () => close(false);
+            });
+        }
+
+
+        // --- VIEWPORT CONTROL ---
         document.addEventListener('touchmove', function(e) {
-            e.preventDefault();
+            if(e.target.tagName !== 'TEXTAREA') {
+                e.preventDefault();
+            }
         }, { passive: false });
 
-        // 2. Visual Viewport リサイズ監視
-        // キーボードが出た時のサイズ変更を検知して、アプリの高さを強制的に合わせる
         function resizeApp() {
             const viewport = window.visualViewport;
             const appWrapper = document.getElementById('app-wrapper');
-            
             if (viewport && appWrapper) {
-                // キーボードを避けた実際の高さに設定
                 appWrapper.style.height = `${viewport.height}px`;
-                appWrapper.style.top = `${viewport.offsetTop}px`; // 位置ズレ補正
-                
-                // 強制的にスクロール位置を0に戻す（ブラウザの自動スクロール対策）
+                appWrapper.style.top = `${viewport.offsetTop}px`;
                 window.scrollTo(0, 0);
             }
         }
@@ -454,19 +806,35 @@
             window.visualViewport.addEventListener('resize', resizeApp);
             window.visualViewport.addEventListener('scroll', resizeApp);
         }
-        
-        // ロード時にも一度実行
-        window.addEventListener('load', resizeApp);
+        window.addEventListener('load', () => {
+            resizeApp();
+            const landing = document.getElementById('screen-landing');
+            landing.style.display = 'flex';
+            setTimeout(() => landing.classList.add('active'), 50);
+        });
         window.addEventListener('resize', resizeApp);
 
-        // --- Navigation Logic ---
 
+        // --- NAVIGATION ---
         function switchScreen(screenId) {
-            document.querySelectorAll('.screen').forEach(el => el.style.display = 'none');
+            const screens = document.querySelectorAll('.screen');
             const target = document.getElementById(screenId);
+
+            screens.forEach(el => {
+                if (el.style.display !== 'none' && el !== target) {
+                    el.classList.remove('active');
+                    el.classList.add('exit');
+                    setTimeout(() => {
+                        el.style.display = 'none';
+                        el.classList.remove('exit');
+                    }, 600);
+                }
+            });
+
             if(target) {
                 target.style.display = 'flex';
-                // 画面切り替え時にもリサイズをかけてフィッティングを確実にする
+                void target.offsetWidth; // Force Reflow
+                target.classList.add('active');
                 resizeApp();
             }
         }
@@ -493,31 +861,80 @@
             peer.on('connection', (c) => handleConnection(c));
         }
 
-        function copyIdToClipboard() {
+        // --- COPY FUNCTION (FIXED) ---
+        async function copyIdToClipboard() {
             const el = document.getElementById('my-id');
             const text = el.textContent;
-            if (!text || text === "生成中..." || text === "COPIED") return;
-            navigator.clipboard.writeText(text).then(() => {
+            
+            if (!text || text === "GENERATING..." || text === "COPIED") return;
+
+            const currentScrollX = window.scrollX;
+            const currentScrollY = window.scrollY;
+
+            let success = false;
+
+            try {
+                await navigator.clipboard.writeText(text);
+                success = true;
+            } catch (err) {
+                const textArea = document.createElement("textarea");
+                textArea.value = text;
+                textArea.setAttribute('readonly', '');
+                
+                // 画面中央に固定し、透明かつ極小にする
+                textArea.style.position = 'fixed';
+                textArea.style.left = '50%';
+                textArea.style.top = '50%';
+                textArea.style.width = '1px';
+                textArea.style.height = '1px';
+                textArea.style.opacity = '0';
+                textArea.style.zIndex = '-1';
+                
+                document.body.appendChild(textArea);
+                
+                textArea.focus({preventScroll: true});
+                textArea.select();
+                
+                try {
+                    success = document.execCommand('copy');
+                } catch (e) {
+                    console.error("Fallback failed", e);
+                }
+                
+                document.body.removeChild(textArea);
+                window.scrollTo(currentScrollX, currentScrollY);
+            }
+
+            if (success) {
                 const original = text;
                 el.textContent = "COPIED";
-                el.style.color = "#88ff88"; 
+                el.style.color = "var(--accent-green)"; 
+                el.style.borderColor = "var(--accent-green)";
+                
+                showToast("IDをコピーしました");
+
                 setTimeout(() => {
-                    el.textContent = original;
-                    el.style.color = "#ddd"; 
-                }, 1000);
-            }).catch(err => console.error("Copy failed", err));
+                    if(el.textContent === "COPIED"){
+                        el.textContent = original;
+                        el.style.color = "#fff";
+                        el.style.borderColor = "var(--border-color)";
+                    }
+                }, 1200);
+            } else {
+                showToast("IDのコピーに失敗しました");
+            }
         }
 
         function connectToPeer() {
             const targetId = document.getElementById('target-id-input').value.trim();
-            if (!targetId) return alert('相手のIDを入力してください');
+            if (!targetId) return showToast('IDを入力してください');
             const connection = peer.connect(targetId);
             handleConnection(connection);
         }
 
         async function startDestiny() {
             switchScreen('screen-destiny');
-            document.getElementById('destiny-status').textContent = "SCANNING THE VOID...";
+            document.getElementById('destiny-status').textContent = "SCANNING THE VOID";
             if(peer) peer.destroy();
             peer = new Peer();
             peer.on('open', async (id) => {
@@ -527,16 +944,14 @@
                 shuffleArray(roomList);
                 let joined = false;
                 for (const roomId of roomList) {
-                    if (document.getElementById('screen-destiny').style.display === 'none') return;
+                    if (!document.getElementById('screen-destiny').classList.contains('active')) return;
                     console.log("Knocking on:", roomId);
                     joined = await tryConnect(roomId);
                     if (joined) {
-                        console.log("Joined room:", roomId);
                         return; 
                     }
                 }
                 if (!joined) {
-                    console.log("No hosts found. Becoming host.");
                     becomeHost(roomList[0]); 
                 }
             });
@@ -566,7 +981,7 @@
         }
 
         function becomeHost(roomId) {
-            document.getElementById('destiny-status').textContent = "WAITING FOR A SOUL...";
+            document.getElementById('destiny-status').textContent = "WAITING FOR A SOUL";
             if(peer) peer.destroy();
             peer = new Peer(roomId);
             peer.on('open', (id) => {
@@ -574,12 +989,10 @@
                 console.log("Hosting room:", id);
             });
             peer.on('connection', (c) => {
-                console.log("Guest arrived!");
                 handleConnection(c);
             });
             peer.on('error', (err) => {
                 if (err.type === 'unavailable-id') {
-                    console.log("Room taken, retrying...");
                     setTimeout(startDestiny, 500); 
                 }
             });
@@ -598,18 +1011,22 @@
                 return;
             }
             conn = connection;
-            conn.on('open', () => { startChat(); });
+            conn.on('open', () => { 
+                startChat(); 
+                showToast("接続されました");
+            });
             conn.on('data', (data) => {
                 const opponentText = document.getElementById('opponent-text');
                 if (data.type === 'typing') {
                     opponentText.textContent = data.text;
                     opponentText.classList.remove('evaporate');
+                    opponentText.style.textShadow = "0 0 10px rgba(255,255,255,0.4)";
                 } else if (data.type === 'vanish') {
                     animateOpponentSend(opponentText);
                 }
             });
             conn.on('close', () => {
-                alert('相手との接続が切れました');
+                showToast('相手との接続が切れました');
                 goBack();
             });
         }
@@ -618,16 +1035,15 @@
             switchScreen('screen-chat');
             resetChatUI();
             
-            // フォーカス時にブラウザが勝手にスクロールするのを防ぐため
-            // 少し遅延させてからリサイズ処理を走らせる
             setTimeout(() => {
                 document.getElementById('self-input').focus();
                 resizeApp();
-            }, 300);
+            }, 600);
         }
 
-        function manualExit() {
-            if(confirm('接続を切りますか？')) goBack();
+        async function manualExit() {
+            const confirmed = await showConfirm('接続を切りますか？');
+            if (confirmed) goBack();
         }
 
         function resetChatUI() {
@@ -652,7 +1068,6 @@
             }
         });
 
-        // 画面リサイズ（キーボード開閉）時にスクロール位置がずれた場合、強制的に戻す
         selfInput.addEventListener('blur', () => {
              window.scrollTo(0,0);
              resizeApp();
@@ -669,11 +1084,13 @@
             ghost.style.transform = 'translate(-50%, -50%)';
             ghost.style.fontSize = window.getComputedStyle(element).fontSize;
             ghost.style.color = '#fff';
+            ghost.style.fontFamily = 'var(--font-jp)';
             ghost.className = 'evaporate';
             element.parentElement.appendChild(ghost);
+            
             element.value = '';
             if (conn && conn.open) conn.send({ type: 'typing', text: '' });
-            setTimeout(() => { ghost.remove(); }, 1000);
+            setTimeout(() => { ghost.remove(); }, 1200);
         }
 
         function animateOpponentSend(element) {
@@ -681,7 +1098,8 @@
              setTimeout(() => {
                  element.textContent = '';
                  element.classList.remove('evaporate');
-             }, 800);
+                 element.style.textShadow = "none";
+             }, 1000);
         }
     </script>
 </body>
